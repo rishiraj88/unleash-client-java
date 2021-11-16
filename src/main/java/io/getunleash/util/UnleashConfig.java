@@ -18,8 +18,8 @@ import java.util.Optional;
 
 public class UnleashConfig {
 
-    static final String UNLEASH_APP_NAME_HEADER = "UNLEASH-APPNAME";
-    static final String UNLEASH_INSTANCE_ID_HEADER = "UNLEASH-INSTANCEID";
+    public static final String UNLEASH_APP_NAME_HEADER = "UNLEASH-APPNAME";
+    public static final String UNLEASH_INSTANCE_ID_HEADER = "UNLEASH-INSTANCEID";
 
     private final URI unleashAPI;
     private final UnleashURLs unleashURLs;
@@ -36,6 +36,7 @@ public class UnleashConfig {
     private final long sendMetricsInterval;
     private final boolean disableMetrics;
     private final boolean isProxyAuthenticationByJvmProperties;
+    private final boolean useOkHttpClient;
     private final UnleashContextProvider contextProvider;
     private final boolean synchronousFetchOnInitialisation;
     private final UnleashScheduledExecutor unleashScheduledExecutor;
@@ -61,6 +62,7 @@ public class UnleashConfig {
             UnleashContextProvider contextProvider,
             boolean isProxyAuthenticationByJvmProperties,
             boolean synchronousFetchOnInitialisation,
+            boolean useOkHttpClient,
             @Nullable UnleashScheduledExecutor unleashScheduledExecutor,
             @Nullable UnleashSubscriber unleashSubscriber,
             @Nullable Strategy fallbackStrategy,
@@ -121,6 +123,7 @@ public class UnleashConfig {
         this.unleashSubscriber = unleashSubscriber;
         this.toggleBootstrapProvider = unleashBootstrapProvider;
         this.proxy = proxy;
+        this.useOkHttpClient = useOkHttpClient;
     }
 
     public static Builder builder() {
@@ -233,6 +236,10 @@ public class UnleashConfig {
         return proxy;
     }
 
+    public boolean isUseOkHttpClient() {
+        return this.useOkHttpClient;
+    }
+
     static class SystemProxyAuthenticator extends Authenticator {
         @Override
         protected @Nullable PasswordAuthentication getPasswordAuthentication() {
@@ -302,6 +309,7 @@ public class UnleashConfig {
         private long fetchTogglesInterval = 10;
         private long sendMetricsInterval = 60;
         private boolean disableMetrics = false;
+        private boolean useOkHttpClient = false;
         private UnleashContextProvider contextProvider =
                 UnleashContextProvider.getDefaultProvider();
         private boolean synchronousFetchOnInitialisation = false;
@@ -370,6 +378,16 @@ public class UnleashConfig {
 
         public Builder namePrefix(String namePrefix) {
             this.namePrefix = namePrefix;
+            return this;
+        }
+
+        public Builder useOkHttpClient() {
+            this.useOkHttpClient = true;
+            return this;
+        }
+
+        public Builder useOkHttpClient(boolean use) {
+            this.useOkHttpClient = use;
             return this;
         }
 
@@ -472,6 +490,7 @@ public class UnleashConfig {
                     contextProvider,
                     isProxyAuthenticationByJvmProperties,
                     synchronousFetchOnInitialisation,
+                    useOkHttpClient,
                     Optional.ofNullable(scheduledExecutor)
                             .orElseGet(UnleashScheduledExecutorImpl::getInstance),
                     Optional.ofNullable(unleashSubscriber).orElseGet(NoOpSubscriber::new),
