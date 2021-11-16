@@ -6,13 +6,11 @@ import static io.getunleash.util.UnleashConfig.UNLEASH_INSTANCE_ID_HEADER;
 import com.google.gson.JsonSyntaxException;
 import io.getunleash.UnleashException;
 import io.getunleash.util.UnleashConfig;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Map;
-
 import okhttp3.Cache;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -38,56 +36,59 @@ public class OkHttpToggleFetcher implements ToggleFetcher {
         }
 
         OkHttpClient.Builder builder =
-            new OkHttpClient.Builder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .callTimeout(Duration.ofSeconds(5));
+                new OkHttpClient.Builder()
+                        .connectTimeout(Duration.ofSeconds(10))
+                        .callTimeout(Duration.ofSeconds(5));
         if (tempDir != null) {
             builder = builder.cache(new Cache(tempDir, 1024 * 1024 * 50));
         }
+        if (unleashConfig.getProxy() != null) {
+            builder = builder.proxy(unleashConfig.getProxy());
+        }
         this.client =
-            builder.followRedirects(true)
-                .addInterceptor(
-                    (c) -> {
-                        Request.Builder headers =
-                            c.request()
-                                .newBuilder()
-                                .addHeader("Content-Type", "application/json")
-                                .addHeader("Accept", "application/json")
-                                .addHeader(
-                                    UNLEASH_APP_NAME_HEADER,
-                                    unleashConfig.getAppName())
-                                .addHeader(
-                                    UNLEASH_INSTANCE_ID_HEADER,
-                                    unleashConfig.getInstanceId())
-                                .addHeader(
-                                    "User-Agent",
-                                    unleashConfig.getAppName());
-                        for (Map.Entry<String, String> headerEntry :
-                            unleashConfig.getCustomHttpHeaders().entrySet()) {
-                            headers =
-                                headers.addHeader(
-                                    headerEntry.getKey(),
-                                    headerEntry.getValue());
-                        }
-                        for (Map.Entry<String, String> headerEntry :
-                            unleashConfig
-                                .getCustomHttpHeadersProvider()
-                                .getCustomHeaders()
-                                .entrySet()) {
-                            headers =
-                                headers.addHeader(
-                                    headerEntry.getKey(),
-                                    headerEntry.getValue());
-                        }
-                        return c.proceed(headers.build());
-                    })
-                .build();
+                builder.followRedirects(true)
+                        .addInterceptor(
+                                (c) -> {
+                                    Request.Builder headers =
+                                            c.request()
+                                                    .newBuilder()
+                                                    .addHeader("Content-Type", "application/json")
+                                                    .addHeader("Accept", "application/json")
+                                                    .addHeader(
+                                                            UNLEASH_APP_NAME_HEADER,
+                                                            unleashConfig.getAppName())
+                                                    .addHeader(
+                                                            UNLEASH_INSTANCE_ID_HEADER,
+                                                            unleashConfig.getInstanceId())
+                                                    .addHeader(
+                                                            "User-Agent",
+                                                            unleashConfig.getAppName());
+                                    for (Map.Entry<String, String> headerEntry :
+                                            unleashConfig.getCustomHttpHeaders().entrySet()) {
+                                        headers =
+                                                headers.addHeader(
+                                                        headerEntry.getKey(),
+                                                        headerEntry.getValue());
+                                    }
+                                    for (Map.Entry<String, String> headerEntry :
+                                            unleashConfig
+                                                    .getCustomHttpHeadersProvider()
+                                                    .getCustomHeaders()
+                                                    .entrySet()) {
+                                        headers =
+                                                headers.addHeader(
+                                                        headerEntry.getKey(),
+                                                        headerEntry.getValue());
+                                    }
+                                    return c.proceed(headers.build());
+                                })
+                        .build();
         this.unleashConfig = unleashConfig;
         this.toggleUrl =
-            unleashConfig
-                .getUnleashURLs()
-                .getFetchTogglesHttpUrl(
-                    unleashConfig.getProjectName(), unleashConfig.getNamePrefix());
+                unleashConfig
+                        .getUnleashURLs()
+                        .getFetchTogglesHttpUrl(
+                                unleashConfig.getProjectName(), unleashConfig.getNamePrefix());
     }
 
     @Override
@@ -103,18 +104,21 @@ public class OkHttpToggleFetcher implements ToggleFetcher {
                     return new FeatureToggleResponse(FeatureToggleResponse.Status.NOT_CHANGED, 304);
                 } else {
                     ToggleCollection toggles =
-                        JsonToggleParser.fromJson(response.body().charStream());
+                            JsonToggleParser.fromJson(response.body().charStream());
                     return new FeatureToggleResponse(FeatureToggleResponse.Status.CHANGED, toggles);
                 }
+            } else if (response.code() >= 301 && response.code() <= 304) {
+                return new FeatureToggleResponse(
+                        FeatureToggleResponse.Status.NOT_CHANGED, response.code());
             } else {
                 return new FeatureToggleResponse(
-                    FeatureToggleResponse.Status.UNAVAILABLE, response.code());
+                        FeatureToggleResponse.Status.UNAVAILABLE, response.code());
             }
         } catch (IOException ioEx) {
             throw new UnleashException("Could not fetch toggles", ioEx);
         } catch (IllegalStateException | JsonSyntaxException ex) {
             return new FeatureToggleResponse(
-                FeatureToggleResponse.Status.UNAVAILABLE, code, location.toString());
+                    FeatureToggleResponse.Status.UNAVAILABLE, code, location.toString());
         }
     }
 }
